@@ -212,7 +212,8 @@ class MockReader:
 
 def parse(path, format=None):
     '''
-    Parse a feature file and return an array of feature objects.  Supported formats are bed, gff, and gtf.
+    Parse a feature file and return an array of feature objects.
+    Supported formats are bed, gcnv bed, gff, and gtf.
     :param path: Path to feature file, which can be local or url
     :param format: File format, bed | gtf | gff
     :param split_bool: Boolean specifying whether view is multi locus or not
@@ -224,6 +225,8 @@ def parse(path, format=None):
         f = getstream(path)
         if not format:
             format = infer_format(path)
+        if format == 'gcnv':
+            return parse_gcnv(f)
         if format == 'bed':
             return parse_bed(f)
         elif format == 'gff'  or format == 'gff3' or format == 'gtf':
@@ -253,6 +256,12 @@ def parse_bed(f):
                 name = tokens[3] if len(tokens) > 3 else ''
                 features.append(Feature(chr, start, end, line, name))
     return features
+
+
+def parse_gcnv():
+    """
+    Parse gcnv bed file
+    """
 
 
 def parse_refgene(f):
@@ -322,9 +331,9 @@ def infer_format(filename):
     :param filename:
     :return:
     '''
-    filename = filename.lower()
-    if (filename.endswith(".gz")):
-        filename = filename[:-3]
+    input_filename = input_filename.lower()
+    if (input_filename.endswith(".gz")):
+        filename = input_filename[:-3]
 
     if filename.endswith(".bam"):
         return "bam"
@@ -333,7 +342,10 @@ def infer_format(filename):
     elif filename.endswith(".vcf"):
         return "vcf"
     elif filename.endswith(".bed"):
-        return "bed"
+        if is_gcnv(input_filename):
+            return "gcnv"
+        else:
+            return "bed"
     elif filename.endswith(".bedpe"):
         return "bedpe"
     elif filename.endswith(".gff") or filename.endswith(".gff3"):
@@ -353,3 +365,19 @@ def infer_format(filename):
             return filename[idx + 1:]
         else:
             return None
+
+
+def is_gcnv(file):
+    """
+    Infers if a bed file is a gcnv bed from reading the track property
+
+    :param: file
+        bed file to check
+    :returns: bool
+        True if file is gcnv
+    """
+    with open(file) as fh:
+        header = fh.readline()
+
+    return 'track=gcnv' in header
+
